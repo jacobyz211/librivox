@@ -1,7 +1,7 @@
 {
-  "name": "eclipse-librivox-addon",
+  "name": "eclipse-MultisourceAudiobooks-addon",
   "version": "1.0.0",
-  "description": "LibriVox audiobooks addon for Eclipse Music",
+  "description": "Multisource audiobooks addon for Eclipse Music",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
