@@ -126,10 +126,33 @@ function lvSections(data) { return (data && Array.isArray(data.sections)) ? data
 function lvAuthors(data)  { return (data && Array.isArray(data.authors))  ? data.authors  : []; }
 
 function bookArtwork(book) {
-  if (book && book.cover_url && book.cover_url.startsWith('http')) return book.cover_url;
-  const zip = (book && book.url_zip_file) || '';
-  const m   = zip.match(/archive\.org\/download\/([^/]+)\//);
-  if (m) return 'https://archive.org/services/img/' + m[1];
+  if (!book) return null;
+  // cover_url - skip generic LibriVox placeholders
+  if (book.cover_url && book.cover_url.startsWith('http') &&
+      !book.cover_url.includes('librivox_square_logo') &&
+      !book.cover_url.includes('no_cover') &&
+      !book.cover_url.includes('/img/librivox')) {
+    return book.cover_url;
+  }
+  // Extract archive.org identifier from any URL field
+  const candidates = [book.url_zip_file, book.url_iarchive].filter(Boolean);
+  for (const u of candidates) {
+    const m = String(u).match(/archive\.org\/(?:download|details)\/([^/?#\/]+)/);
+    if (m && m[1]) return 'https://archive.org/services/img/' + m[1];
+  }
+  // Derive identifier from url_librivox slug (slug + _librivox pattern is common)
+  if (book.url_librivox) {
+    const ms = String(book.url_librivox).match(/librivox\.org\/([a-z0-9-]+)\/?$/i);
+    if (ms && ms[1]) {
+      const slug = ms[1].replace(/-/g, '');
+      return 'https://archive.org/services/img/' + slug + '_librivox';
+    }
+  }
+  // Open Library fallback by title
+  if (book.title) {
+    const t = encodeURIComponent(cleanText(book.title));
+    return 'https://covers.openlibrary.org/b/title/' + t + '-M.jpg';
+  }
   return null;
 }
 
@@ -255,29 +278,29 @@ function buildConfigPage(baseUrl) {
   h += '<div class="stat"><div class="stat-n">100%</div><div class="stat-l">Free Forever</div></div>';
   h += '<div class="stat"><div class="stat-n">30+</div><div class="stat-l">Languages</div></div>';
   h += '</div>';
-  h += '<p class="sub">Classic literature, philosophy, poetry & more. All public domain, all free, all streamable inside Eclipse. No account or API key needed \u2014 just click generate.</p>';
+  h += '<p class="sub">Classic literature, philosophy, poetry & more. All public domain, all free, all streamable inside Eclipse. No account or API key needed — just click generate.</p>';
   h += '<div class="pills"><span class="pill">Literature</span><span class="pill">Philosophy</span><span class="pill">Poetry</span><span class="pill">Mystery</span><span class="pill">Sci-Fi</span><span class="pill">History</span><span class="pill g">No signup needed</span><span class="pill g">Offline download</span></div>';
   h += '<button class="bo" id="genBtn" onclick="generate()">Generate My Addon URL</button>';
-  h += '<div class="box" id="genBox"><div class="blbl">Your addon URL \u2014 paste into Eclipse</div><div class="burl" id="genUrl"></div><button class="bd" id="copyBtn" onclick="copyUrl()">Copy URL</button></div>';
+  h += '<div class="box" id="genBox"><div class="blbl">Your addon URL — paste into Eclipse</div><div class="burl" id="genUrl"></div><button class="bd" id="copyBtn" onclick="copyUrl()">Copy URL</button></div>';
   h += '<div class="status" id="genStatus"></div>';
   h += '<hr>';
   h += '<div class="lbl">Restore an existing URL</div>';
   h += '<input type="text" id="existingUrl" placeholder="Paste your existing addon URL here">';
   h += '<button class="bg" id="refBtn" onclick="doRefresh()">Restore Existing URL</button>';
-  h += '<div class="box" id="refBox"><div class="blbl">Restored \u2014 still works in Eclipse</div><div class="burl" id="refUrl"></div><button class="bd" id="copyRefBtn" onclick="copyRef()">Copy URL</button></div>';
+  h += '<div class="box" id="refBox"><div class="blbl">Restored — still works in Eclipse</div><div class="burl" id="refUrl"></div><button class="bd" id="copyRefBtn" onclick="copyRef()">Copy URL</button></div>';
   h += '<hr>';
   h += '<div class="steps">';
   h += '<div class="step"><div class="sn">1</div><div class="st">Click <b>Generate My Addon URL</b> above</div></div>';
   h += '<div class="step"><div class="sn">2</div><div class="st">Copy your URL</div></div>';
-  h += '<div class="step"><div class="sn">3</div><div class="st">Open <b>Eclipse</b> \u2192 Settings \u2192 Connections \u2192 Add Connection \u2192 Addon</div></div>';
+  h += '<div class="step"><div class="sn">3</div><div class="st">Open <b>Eclipse</b> → Settings → Connections → Add Connection → Addon</div></div>';
   h += '<div class="step"><div class="sn">4</div><div class="st">Paste your URL and tap <b>Install</b></div></div>';
   h += '</div>';
-  h += '<div class="warn">Your token is saved to Redis \u2014 it survives server restarts. Each person should generate their own URL for separate rate limits.</div>';
+  h += '<div class="warn">Your token is saved to Redis — it survives server restarts. Each person should generate their own URL for separate rate limits.</div>';
   h += '</div>';
 
   h += '<div class="card">';
   h += '<h2>Import a Book to Eclipse Library</h2>';
-  h += '<p class="sub">Downloads a CSV for Library \u2192 Import CSV in Eclipse. Each chapter becomes a track.</p>';
+  h += '<p class="sub">Downloads a CSV for Library → Import CSV in Eclipse. Each chapter becomes a track.</p>';
   h += '<div class="lbl">Your Addon URL</div>';
   h += '<input type="text" id="impToken" placeholder="Paste your addon URL (auto-fills after generating)">';
   h += '<div class="lbl">Book Title or LibriVox URL</div>';
@@ -295,12 +318,12 @@ function buildConfigPage(baseUrl) {
 
   h += 'function generate(){';
   h += 'var btn=document.getElementById("genBtn"),st=document.getElementById("genStatus");';
-  h += 'btn.disabled=true;btn.textContent="Generating...";st.className="status spin";st.textContent="Creating your token\u2026";';
+  h += 'btn.disabled=true;btn.textContent="Generating...";st.className="status spin";st.textContent="Creating your token…";';
   h += 'fetch("/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"})';
   h += '.then(r=>r.json()).then(d=>{';
   h += 'if(d.error){st.className="status err";st.textContent=d.error;btn.disabled=false;btn.textContent="Generate My Addon URL";return;}';
   h += '_gu=d.manifestUrl;document.getElementById("genUrl").textContent=_gu;document.getElementById("genBox").style.display="block";document.getElementById("impToken").value=_gu;';
-  h += 'st.className="status ok";st.textContent="\u2713 Your addon URL is ready";btn.disabled=false;btn.textContent="Regenerate URL";})';
+  h += 'st.className="status ok";st.textContent="✓ Your addon URL is ready";btn.disabled=false;btn.textContent="Regenerate URL";})';
   h += '.catch(e=>{st.className="status err";st.textContent="Error: "+e.message;btn.disabled=false;btn.textContent="Generate My Addon URL";});}';
 
   h += 'function copyUrl(){if(!_gu)return;navigator.clipboard.writeText(_gu).then(()=>{var b=document.getElementById("copyBtn");b.textContent="Copied!";setTimeout(()=>b.textContent="Copy URL",1500);});}';
@@ -308,7 +331,7 @@ function buildConfigPage(baseUrl) {
   h += 'function doRefresh(){';
   h += 'var btn=document.getElementById("refBtn"),eu=document.getElementById("existingUrl").value.trim();';
   h += 'if(!eu){alert("Paste your existing addon URL first.");return;}';
-  h += 'btn.disabled=true;btn.textContent="Checking\u2026";';
+  h += 'btn.disabled=true;btn.textContent="Checking…";';
   h += 'fetch("/refresh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({existingUrl:eu})})';
   h += '.then(r=>r.json()).then(d=>{';
   h += 'if(d.error){alert(d.error);btn.disabled=false;btn.textContent="Restore Existing URL";return;}';
@@ -326,12 +349,12 @@ function buildConfigPage(baseUrl) {
   h += 'if(!raw){st.className="status err";st.textContent="Paste your addon URL first.";return;}';
   h += 'if(!q){st.className="status err";st.textContent="Enter a book title or LibriVox URL.";return;}';
   h += 'var tok=getTok(raw);if(!tok){st.className="status err";st.textContent="Could not find your token in the URL.";return;}';
-  h += 'btn.disabled=true;btn.textContent="Fetching\u2026";st.className="status spin";st.textContent="Fetching chapters\u2026";pv.style.display="none";';
+  h += 'btn.disabled=true;btn.textContent="Fetching…";st.className="status spin";st.textContent="Fetching chapters…";pv.style.display="none";';
   h += 'fetch("/u/"+tok+"/import?q="+encodeURIComponent(q))';
   h += '.then(r=>{if(!r.ok)return r.json().then(e=>{throw new Error(e.error||"Server error "+r.status);});return r.json();})';
   h += '.then(data=>{';
   h += 'var tracks=data.tracks||[];if(!tracks.length)throw new Error("No chapters found.");';
-  h += 'var rows=tracks.slice(0,60).map((t,i)=>\'<div class="tr"><span class="tn">\'+(i+1)+\'</span><div class="ti"><div class="tt">\'+hesc(t.title)+\'</div><div class="ta">\'+hesc(t.artist)+(t.duration?" \u00b7 "+Math.floor(t.duration/60)+"m":"")+\'</div></div></div>\').join("");';
+  h += 'var rows=tracks.slice(0,60).map((t,i)=>\'<div class="tr"><span class="tn">\'+(i+1)+\'</span><div class="ti"><div class="tt">\'+hesc(t.title)+\'</div><div class="ta">\'+hesc(t.artist)+(t.duration?" · "+Math.floor(t.duration/60)+"m":"")+\'</div></div></div>\').join("");';
   h += 'if(tracks.length>60)rows+=\'<div class="tr" style="text-align:center;color:#555">+\'+(tracks.length-60)+\' more chapters</div>\';';
   h += 'pv.innerHTML=rows;pv.style.display="block";';
   h += 'st.className="status ok";st.textContent="Found "+tracks.length+" chapters in \\""+data.title+"\\"";';
@@ -403,7 +426,9 @@ app.get('/u/:token/search', tokenMiddleware, async function(req, res) {
         const key  = name.toLowerCase();
         if (!name || artistMap.has(key)) return;
         artistMap.set(key, {
-          id:         'lv_author_' + String(a.id),
+          id:         (a.id && !isNaN(Number(a.id)))
+                        ? 'lv_author_' + String(a.id)
+                        : 'lv_authorname_' + encodeURIComponent(name),
           name,
           artworkURL: bookArtwork(book),
           genres:     (Array.isArray(book.genres) ? book.genres.map(g => g.name) : []).slice(0, 2)
@@ -499,16 +524,25 @@ app.get('/u/:token/album/:id', tokenMiddleware, async function(req, res) {
 
 // Artist = Author page
 app.get('/u/:token/artist/:id', tokenMiddleware, async function(req, res) {
-  const rawId    = req.params.id;
-  const authorId = rawId.replace('lv_author_', '');
+  const rawId = req.params.id;
+  const isNameBased = rawId.startsWith('lv_authorname_');
   try {
-    const [authorData, bookData] = await Promise.all([
-      lvGet('/authors', { id: authorId }),
-      lvGet('/audiobooks', { author_id: authorId, limit: 30, extended: 1, coverart: 1 })
-    ]);
-    const authorInfo = lvAuthors(authorData)[0] || {};
-    const fullName   = cleanText([authorInfo.first_name, authorInfo.last_name].filter(Boolean).join(' '));
-    const books      = lvBooks(bookData);
+    let authorInfo = {}, books = [], fullName = '';
+    if (isNameBased) {
+      const authorName = decodeURIComponent(rawId.replace('lv_authorname_', ''));
+      fullName = authorName;
+      const bookData = await lvGet('/audiobooks', { author: authorName, limit: 30, extended: 1, coverart: 1 });
+      books = lvBooks(bookData);
+    } else {
+      const authorId = rawId.replace('lv_author_', '');
+      const [authorData, bookData] = await Promise.all([
+        lvGet('/authors', { id: authorId }),
+        lvGet('/audiobooks', { author_id: authorId, limit: 30, extended: 1, coverart: 1 })
+      ]);
+      authorInfo = lvAuthors(authorData)[0] || {};
+      fullName   = cleanText([authorInfo.first_name, authorInfo.last_name].filter(Boolean).join(' ')) || ('Author ' + authorId);
+      books = lvBooks(bookData);
+    }
     const albums     = books.map(mapBookToAlbum);
 
     // topTracks = first chapter of each of the author's first 5 books
@@ -529,7 +563,7 @@ app.get('/u/:token/artist/:id', tokenMiddleware, async function(req, res) {
 
     res.json({
       id:         rawId,
-      name:       fullName || ('Author ' + authorId),
+      name:       fullName || 'Unknown Author',
       artworkURL: books.length > 0 ? bookArtwork(books[0]) : null,
       bio:        authorInfo.bio ? cleanText(authorInfo.bio).replace(/<[^>]*>/g, '').slice(0, 500) : null,
       genres:     Array.from(genreSet).slice(0, 3),
