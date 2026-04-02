@@ -891,7 +891,7 @@ app.get('/u/:token/manifest.json', tokenMiddleware, function(req, res) {
     name:        'Multi Source Audiobook Addon',
     version:     '1.3.0',
     description: 'Multi-source free audiobook addon for Eclipse Music. LibriVox, Loyal Books, Internet Archive, and Open Culture.',
-    icon:        'https://librivox.org/img/librivox_logo_flat.png',
+    icon:        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTcEj3poC204YdgLtH4qLrsQT1pHQsPwFF_nQQe8ilEhA&s=10',
     resources:   ['search', 'stream', 'catalog'],
     types:       ['track', 'album', 'artist', 'playlist']
   });
