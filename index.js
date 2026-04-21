@@ -1244,7 +1244,7 @@ app.get('/u/:token/import', tokenMiddleware, async function(req, res) {
 
 // Health
 app.get('/health', function(req, res) {
-  res.json({ status: 'ok', version: '1.3.2', redisConnected: !!(redis && redis.status === 'ready'), podcastIndexConfigured: TOKEN_CACHE.size > 0 ? Array.from(TOKEN_CACHE.values()).some(v => hasPodcastIndex(v)) : false, activeTokens: TOKEN_CACHE.size, cachedSearches: SEARCH_CACHE.size, cachedChapters: CHAPTER_CACHE.size, cachedBooks: BOOK_CACHE.size, timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version: '1.3.3', redisConnected: !!(redis && redis.status === 'ready'), podcastIndexConfigured: TOKEN_CACHE.size > 0 ? Array.from(TOKEN_CACHE.values()).some(v => hasPodcastIndex(v)) : false, activeTokens: TOKEN_CACHE.size, cachedSearches: SEARCH_CACHE.size, cachedChapters: CHAPTER_CACHE.size, cachedBooks: BOOK_CACHE.size, timestamp: new Date().toISOString() });
 });
 
 app.listen(PORT, () => console.log('Multi Source Audiobook Addon v1.3.2 on port ' + PORT));
