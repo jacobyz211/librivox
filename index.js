@@ -893,7 +893,7 @@ function buildConfigPage(baseUrl) {
   h += '<button class="bg" id="impBtn" onclick="doImport()">Fetch &amp; Download CSV</button>';
   h += '</div>';
 
-  h += '<footer>Multi Source Audiobook Addon v1.3.0 &bull; Powered by LibriVox, Loyal Books, Internet Archive &amp; Open Culture &bull; <a href="' + baseUrl + '/health" target="_blank">Health</a></footer>';
+  h += '<footer>Multi Source Audiobook Addon v1.3.4 &bull; Powered by LibriVox, Loyal Books, Internet Archive &amp; Open Culture &bull; <a href="' + baseUrl + '/health" target="_blank">Health</a></footer>';
 
   h += '<script>';
   h += 'var _gu="",_ru="";';
